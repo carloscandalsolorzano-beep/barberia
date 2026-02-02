@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva - Peluquería Moderna</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <h1 class="text-3xl font-black text-center mb-2 text-amber-500 uppercase tracking-widest">Barbería Elite</h1>
+        <p class="text-slate-400 text-center mb-8 text-sm">Reserva tu corte de 30 min</p>
+
+        <form id="reservaForm" class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Elegir Barbero</label>
+                <select id="peluquero" class="w-full bg-slate-700 border-none p-3 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                    <option value="will">Will</option>
+                    <option value="davis">Davis</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tus Datos</label>
+                <input type="text" id="nombre" placeholder="Nombre completo" class="w-full bg-slate-700 p-3 rounded-lg mb-2 outline-none" required>
+                <input type="tel" id="telefono" placeholder="Número de teléfono" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Día de la cita</label>
+                <input type="date" id="fecha" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Horas disponibles</label>
+                <select id="hora" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+                    <option value="">Selecciona un día primero</option>
+                </select>
+            </div>
+
+            <button type="submit" id="btn" class="w-full bg-amber-600 hover:bg-amber-500 py-4 rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20">
+                CONFIRMAR CITA
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // PEGA AQUÍ TU URL DEL PASO 3
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw5MFIeIPyWBgkr03refFm_d4Ot_CIQh1EtKAVP46-uWTVbVNDtLOEQCF9ZmzklesxA/exec";
+
+        const fechaInput = document.getElementById('fecha');
+        const horaSelect = document.getElementById('hora');
+        const peluqueroSelect = document.getElementById('peluquero');
+
+        [fechaInput, peluqueroSelect].forEach(el => el.addEventListener('change', cargarHoras));
+
+        async function cargarHoras() {
+            if(!fechaInput.value) return;
+            horaSelect.innerHTML = '<option>Consultando...</option>';
+            
+            const res = await fetch(`${URL_SCRIPT}?peluquero=${peluqueroSelect.value}&fecha=${fechaInput.value}`);
+            const ocupados = await res.json();
+
+            const dia = new Date(fechaInput.value).getUTCDay();
+            let horas = [];
+
+            if(dia >= 1 && dia <= 5) { // Lunes a Viernes
+                horas = [...gen(10, 14), ...gen(16.5, 20.5)];
+            } else if(dia === 6) { // Sábado
+                horas = gen(9, 14);
+            }
+
+            const libres = horas.filter(h => !ocupados.includes(h));
+            horaSelect.innerHTML = libres.length ? '' : '<option disabled>Todo lleno</option>';
+            libres.forEach(h => horaSelect.innerHTML += `<option value="${h}">${h}</option>`);
+        }
+
+        function gen(ini, fin) {
+            let res = [];
+            for(let m = ini*60; m < fin*60; m+=30) {
+                let h = Math.floor(m/60).toString().padStart(2,'0');
+                let min = (m%60).toString().padStart(2,'0');
+                res.push(`${h}:${min}`);
+            }
+            return res;
+        }
+
+        document.getElementById('reservaForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn');
+            btn.disabled = true; btn.innerText = "Reservando...";
+
+            const datos = {
+                peluquero: peluqueroSelect.value,
+                nombre: document.getElementById('nombre').value,
+                telefono: document.getElementById('telefono').value,
+                fecha: fechaInput.value,
+                hora: horaSelect.value
+            };
+
+            await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify(datos) });
+            alert("¡Cita confirmada! Te esperamos.");
+            location.reload();
+        };
+    </script>
+</body>
+</html>

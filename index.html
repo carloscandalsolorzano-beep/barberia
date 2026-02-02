@@ -6,7 +6,7 @@
     <title>Reserva - Peluquería Moderna</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4 font-sans">
 
     <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
         <h1 class="text-3xl font-black text-center mb-2 text-amber-500 uppercase tracking-widest">Barbería Elite</h1>
@@ -21,32 +21,31 @@
                 </select>
             </div>
 
-            <div>
+            <div class="space-y-2">
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tus Datos</label>
-                <input type="text" id="nombre" placeholder="Nombre completo" class="w-full bg-slate-700 p-3 rounded-lg mb-2 outline-none" required>
-                <input type="tel" id="telefono" placeholder="Número de teléfono" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+                <input type="text" id="nombre" placeholder="Nombre completo" class="w-full bg-slate-700 p-3 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required>
+                <input type="tel" id="telefono" placeholder="Número de teléfono" class="w-full bg-slate-700 p-3 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required>
             </div>
 
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Día de la cita</label>
-                <input type="date" id="fecha" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+                <input type="date" id="fecha" class="w-full bg-slate-700 p-3 rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-white" required>
             </div>
 
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Horas disponibles</label>
-                <select id="hora" class="w-full bg-slate-700 p-3 rounded-lg outline-none" required>
+                <select id="hora" class="w-full bg-slate-700 p-3 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required>
                     <option value="">Selecciona un día primero</option>
                 </select>
             </div>
 
-            <button type="submit" id="btn" class="w-full bg-amber-600 hover:bg-amber-500 py-4 rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20">
+            <button type="submit" id="btn" class="w-full bg-amber-600 hover:bg-amber-500 py-4 rounded-xl font-bold transition-all shadow-lg shadow-amber-900/40 text-white active:scale-95">
                 CONFIRMAR CITA
             </button>
         </form>
     </div>
 
     <script>
-        // PEGA AQUÍ TU URL DEL PASO 3
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw5MFIeIPyWBgkr03refFm_d4Ot_CIQh1EtKAVP46-uWTVbVNDtLOEQCF9ZmzklesxA/exec";
 
         const fechaInput = document.getElementById('fecha');
@@ -57,23 +56,33 @@
 
         async function cargarHoras() {
             if(!fechaInput.value) return;
-            horaSelect.innerHTML = '<option>Consultando...</option>';
+            horaSelect.innerHTML = '<option>Consultando disponibilidad...</option>';
             
-            const res = await fetch(`${URL_SCRIPT}?peluquero=${peluqueroSelect.value}&fecha=${fechaInput.value}`);
-            const ocupados = await res.json();
+            try {
+                const res = await fetch(`${URL_SCRIPT}?peluquero=${peluqueroSelect.value}&fecha=${fechaInput.value}`);
+                const ocupados = await res.json();
 
-            const dia = new Date(fechaInput.value).getUTCDay();
-            let horas = [];
+                const dia = new Date(fechaInput.value).getUTCDay();
+                let horas = [];
 
-            if(dia >= 1 && dia <= 5) { // Lunes a Viernes
-                horas = [...gen(10, 14), ...gen(16.5, 20.5)];
-            } else if(dia === 6) { // Sábado
-                horas = gen(9, 14);
+                if(dia >= 1 && dia <= 5) { 
+                    horas = [...gen(10, 14), ...gen(16.5, 20.5)];
+                } else if(dia === 6) { 
+                    horas = gen(9, 14);
+                }
+
+                const libres = horas.filter(h => !ocupados.includes(h));
+                horaSelect.innerHTML = libres.length ? '' : '<option disabled>Todo lleno para este día</option>';
+                libres.forEach(h => {
+                    const opt = document.createElement('option');
+                    opt.value = h;
+                    opt.textContent = h;
+                    horaSelect.appendChild(opt);
+                });
+            } catch (error) {
+                horaSelect.innerHTML = '<option disabled>Error al cargar horarios</option>';
+                console.error(error);
             }
-
-            const libres = horas.filter(h => !ocupados.includes(h));
-            horaSelect.innerHTML = libres.length ? '' : '<option disabled>Todo lleno</option>';
-            libres.forEach(h => horaSelect.innerHTML += `<option value="${h}">${h}</option>`);
         }
 
         function gen(ini, fin) {
@@ -89,7 +98,8 @@
         document.getElementById('reservaForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn');
-            btn.disabled = true; btn.innerText = "Reservando...";
+            btn.disabled = true; 
+            btn.innerText = "Procesando reserva...";
 
             const datos = {
                 peluquero: peluqueroSelect.value,
@@ -99,9 +109,15 @@
                 hora: horaSelect.value
             };
 
-            await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify(datos) });
-            alert("¡Cita confirmada! Te esperamos.");
-            location.reload();
+            try {
+                await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify(datos) });
+                alert("¡Cita confirmada! Se ha registrado en el calendario.");
+                location.reload();
+            } catch (err) {
+                alert("Error al enviar la reserva.");
+                btn.disabled = false;
+                btn.innerText = "CONFIRMAR CITA";
+            }
         };
     </script>
 </body>
